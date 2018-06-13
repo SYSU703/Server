@@ -1,4 +1,5 @@
 package web;
+import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.PrintWriter;
 
@@ -44,7 +45,12 @@ public class Logout extends HttpServlet {
         response.setCharacterEncoding("UTF-8");
 		response.setContentType("application/json;charset=UTF-8");
 		PrintWriter out = response.getWriter();
-		String data = request.getParameter("data");
+		BufferedReader br = request.getReader();
+		String str, wholeStr = "";
+		while((str = br.readLine()) != null){
+			wholeStr += str;
+		}
+		String data = wholeStr;
 		JSONObject jsonObject = JSONObject.parseObject(data);
 		Handle handle = new Handle();
 		try {
