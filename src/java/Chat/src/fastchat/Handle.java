@@ -1,12 +1,7 @@
 package fastchat;
 
 import fastchat.Connectsql;
-import models.CompleteGroupInfo;
-import models.CompleteUserInfo;
-import models.FriendAddInfo;
-import models.GroupInviteInfo;
-import models.SimpleGroupInfo;
-import models.SimpleUserInfo;
+import models.*;
 
 import java.util.List;
 import java.sql.Connection;
@@ -381,6 +376,7 @@ public class Handle {
 			return false;
 		Friend.dropFriend(uid1, uid2);
 		Friend.dropFriend2(uid1, uid2);
+		Record.clearFriendRecord(uid1, uid2); // 删除两人之间的通信记录
 		return true;
 	}
 	/**好友申请以及回应模块函数结束**/
@@ -691,4 +687,51 @@ public class Handle {
 	}
 	/**群管理模块函数结束**/
 	
+	
+	
+	
+	
+	
+	/**好友消息记录模块函数开始**/
+	/**
+	 * 返回目标用户与目标好友的聊天记录列表
+	 * @author wsq
+	 * @param uid 目标用户id
+	 * @param friend_uid 好友id
+	 * @return 聊天记录列表，每一条信息包括信息内容，发送人ID，接收人ID，记录时间
+	 */
+	static public List<RecordInfo> getRecordWithFriend(String uid, String friend_uid) {
+		List<Integer> rids = Record.getRecordIdsByUser(uid, friend_uid);
+		List<RecordInfo> info = new ArrayList<>();
+		for (int i = 0; i < rids.size(); i++)
+			info.add(Record.getRecordInfoById(rids.get(i)));
+		Record.readAllRecord(uid); // 此时已经获取了所有消息，因此原先的未读消息变为已读
+		return info;
+	}
+	
+	/**
+	 * 发送消息，在数据库中添加该条记录
+	 * @author wsq
+	 * @param sender_uid 发送者id
+	 * @param receiver_uid 接收者id
+	 * @param message 信息
+	 * @return 发送信息是否成功
+	 */
+	static public boolean sendMessage(String sender_uid, String receiver_uid, String message) {
+		Date currentTime = new Date();
+		return Record.createFriendRecord(message, sender_uid, receiver_uid, currentTime);
+	}
+	
+	/**
+	 * 获取向目标用户发送未读消息的用户列表
+	 * @param uid 目标用户
+	 * @return 向目标用户发送了未读消息的用户列表，每条记录包括用户id，用户昵称，状态(是否在线)
+	 */
+	static public List<SimpleUserInfo> getFriendNotRead(String uid) {
+		List<String> uids = Record.getFriendNotRead(uid);
+		List<SimpleUserInfo> info = new ArrayList<>();
+		for (int i = 0; i < uids.size(); i++)
+			info.add(Handle.getSimpleUserInfo(uids.get(i)));
+		return info;
+	}
 }
