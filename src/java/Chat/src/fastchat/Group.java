@@ -18,27 +18,30 @@ public class Group {
 	 * @author wrf
 	 * 创建群功能，输入相关信息，返回是否成功建立
 	 */
-	static public boolean createGroup(int gid, String announcement, String groupname, String user_uid) {
-		if (groupname.length() <= 0) return false;
+	static public int createGroup(String announcement, String groupname, String user_uid) {
+		if (groupname.length() <= 0) return -1;
+		int result = 0;
 		Connection conn = Connectsql.getConn();
-		String sql = "insert into groupchat (gid, announcement, groupname, user_uid) "
-				+ "values(?,?,?,?)"; 
+		String sql = "insert into groupchat (announcement, groupname, user_uid) "
+				+ "values(?,?,?)"; 
 		PreparedStatement pstmt;
 	    try {
  	        pstmt = (PreparedStatement) conn.prepareStatement(sql);
- 	        pstmt.setInt(1, gid);  
- 	        pstmt.setString(2, announcement);
- 	        pstmt.setString(3, groupname);
- 	        pstmt.setString(4, user_uid); // 设置相关属性内容
+ 	        pstmt.setString(1, announcement);
+ 	        pstmt.setString(2, groupname);
+ 	        pstmt.setString(3, user_uid); // 设置相关属性内容
 	        pstmt.executeUpdate();
+	        ResultSet rs = pstmt.getGeneratedKeys();
+	        while (rs.next())
+	        	result = rs.getInt(1);
 	        pstmt.close();
 	        conn.close();
 		} catch (SQLException e) {
 			e.printStackTrace();
-		    return false;
+		    return -1;
 		}
-	    Group.addGroupmemebr(gid, user_uid);
-		return true;
+	    Group.addGroupmemebr(result, user_uid);
+		return result;
 	}
 	
 	

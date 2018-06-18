@@ -18,6 +18,11 @@ public class main {
 	public static void main(String[] args) {
 		// TODO Auto-generated method stub
 		
+		//Scanner sc_a = new Scanner(System.in);   
+		//System.out.println("请输入用户1uid：");   
+		//String a = sc_a.nextLine();  //读取字符串型输入
+		//System.out.println(Handle.sendEmail(a));
+		
 		/*sendFriendRequest/dropFriend/dropFriendAdd/isExistFriendAdd函数
 		Scanner sc_a = new Scanner(System.in);   
 		System.out.println("请输入用户1uid：");   
