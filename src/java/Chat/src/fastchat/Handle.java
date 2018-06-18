@@ -4,6 +4,7 @@ import fastchat.Connectsql;
 import models.*;
 
 import java.util.List;
+import java.util.Properties;
 import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.PreparedStatement;
@@ -18,11 +19,43 @@ import java.text.SimpleDateFormat;
 
 import java.util.Random;
 
+import javax.mail.Message;
+import javax.mail.Session;
+import javax.mail.Transport;
+
 /**
  * @author wrf
  * 后台处理的类，用来处理从前端传来的数据
  */
 public class Handle {
+	
+	
+	/**
+	 * @author wrf
+	 * 发送验证码功能
+	 * @param targetEmail 输入的注册邮箱
+	 * @return 发送的验证码，看是否匹配，如果出现错误则返回null
+	 */
+	static public String sendEmail(String targetEmail) {
+    	try {
+    	Properties prop = new Properties();
+        prop.setProperty("mail.smtp.host", "smtp.163.com");
+        prop.setProperty("mail.transport.protocol", "smtp");
+        prop.setProperty("mail.smtp.auth", "true");
+        
+        Session session = Session.getInstance(prop); // 创建出与指定邮件服务器会话的session
+        session.setDebug(true);
+        Message message = Mail.createMessage(session, targetEmail); // 创建会话信息
+        Transport ts = session.getTransport();
+        ts.connect("m15639081168@163.com", "tigerone987"); // 连接上邮件服务器，其内部会自动帮你进行base64编码
+        ts.sendMessage(message, message.getAllRecipients()); // 发送邮件目的方
+        ts.close(); // 断开与服务器的连接
+    	} catch (Exception e) {
+    		return null;
+    	}
+        return Mail.a;
+    }
+	
 	
 	/**登录模块函数开始**/
 	/**
@@ -535,17 +568,13 @@ public class Handle {
 	 * @author wsq
 	 * @param uid 创建者id
 	 * @param gName 群名
-	 * @return 群创建是否成功
+	 * @return 群号
 	 */
-	static public boolean createGroup(String uid, String gName) {
-		int gid;
-		Random rand = new Random();
-		while (true) {
-			gid = rand.nextInt(100) + 1;
-			if (!Group.isExistGroup(gid))
-				break;
-		}
-		return Group.createGroup(gid, "", gName, uid);
+	static public String createGroup(String uid, String gName) {
+		int answer = Group.createGroup("", gName, uid);
+		if (answer == -1)
+			return "fail";
+		return String.valueOf(answer);
 	}
 	
 	/**
