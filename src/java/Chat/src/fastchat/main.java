@@ -17,8 +17,7 @@ public class main {
 
 	public static void main(String[] args) {
 		// TODO Auto-generated method stub
-		Handle handle = new Handle();
-		System.out.println(handle.login("df", "ddf"));
+		
 		/*sendFriendRequest/dropFriend/dropFriendAdd/isExistFriendAdd函数
 		Scanner sc_a = new Scanner(System.in);   
 		System.out.println("请输入用户1uid：");   

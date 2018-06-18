@@ -3,14 +3,14 @@ package models;
 import java.util.Date;
 import java.text.SimpleDateFormat;
 
-public class RecordInfo {
+public class FriendRecordInfo {
 	
 	private String message;
 	private String sender_uid;
 	private String receiver_uid;
 	private String record_time;
 	
-	public RecordInfo(String mess, String senderId, String receiverId, Date time) {
+	public FriendRecordInfo(String mess, String senderId, String receiverId, Date time) {
 		message = mess;
 		sender_uid = senderId;
 		receiver_uid = receiverId;

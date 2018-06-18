@@ -22,7 +22,7 @@ public class Connectsql {
 	    }
 		String url = "jdbc:mysql://localhost:3306/mydb?useUnicode=true&characterEncoding=utf-8&useSSL=false";  // 数据库信息，最后为database名称
 		String username = "root";  // 数据库账户，一般为root
-		String password = "111111a";  // 数据库密码		   
+		String password = "";  // 数据库密码		   
 		try{
 		    conn = DriverManager.getConnection(url, username, password);  // 建立连接
 	    } catch (SQLException e) {

@@ -7,7 +7,8 @@ import java.sql.SQLException;
 import java.sql.Timestamp;
 import java.sql.Types;
 
-import models.RecordInfo;
+import models.FriendRecordInfo;
+import models.GroupRecordInfo;
 
 import java.util.ArrayList;
 import java.util.Date;
@@ -19,11 +20,16 @@ public class Record {
 	 * 测试用
 	 * @author wsq
 	 * @param rid 目标记录rid
+	 * @param type 0表示私聊消息，1表示群消息
 	 * @return 是否存在目标记录
 	 */
-	static public boolean hasRecord(int rid) {
+	static public boolean hasRecord(int rid, int type) {
 		Connection conn = Connectsql.getConn();
+		if (type != 0 && type != 1)
+			return false;
 		String sql = "select rid from friendrecord";
+		if (type == 1)
+			sql = "select rid from grouprecord";
 		PreparedStatement pstmt;
 		try {
 			pstmt = (PreparedStatement)conn.prepareStatement(sql);
@@ -42,7 +48,7 @@ public class Record {
 	 * @param rid 目标聊天记录id
 	 * @return 聊天记录信息，包括内容，发送者，接收者，发送时间
 	 */
-	static public RecordInfo getRecordInfoById(int rid) {
+	static public FriendRecordInfo getRecordOfFriendInfoById(int rid) {
 		Connection conn = Connectsql.getConn();
 		String sql = "select message, sender_uid, receiver_uid, recordtime from friendrecord where rid = ?";
 		PreparedStatement pstmt;
@@ -51,7 +57,7 @@ public class Record {
 		    pstmt.setInt(1, rid);
 		    ResultSet rs = pstmt.executeQuery();
 		    while (rs.next())
-		    	return new RecordInfo(rs.getString("message"), rs.getString("sender_uid"), rs.getString("receiver_uid"), rs.getTimestamp("recordtime"));
+		    	return new FriendRecordInfo(rs.getString("message"), rs.getString("sender_uid"), rs.getString("receiver_uid"), rs.getTimestamp("recordtime"));
 		    return null;
 		} catch (SQLException e) {}
 		return null;
@@ -64,7 +70,7 @@ public class Record {
 	 * @param uid_two 用户2的id
 	 * @return 用户1、2之间所有信息往来的rid列表
 	 */
-	static public List<Integer> getRecordIdsByUser(String uid_one, String uid_two) {
+	static public List<Integer> getRecordOfFriendIdsByUser(String uid_one, String uid_two) {
 		List<Integer> info = new ArrayList<>();
 		Connection conn = Connectsql.getConn();
 		String sql = "select rid from friendrecord where "
@@ -90,8 +96,8 @@ public class Record {
 	 * @param rid 目标记录rid
 	 * @return rid是否已读
 	 */
-	static public boolean isRead(int rid) {
-		if (!hasRecord(rid)) return false;
+	static public boolean isReadOfFriend(int rid) {
+		if (!hasRecord(rid, 0)) return false;
 		Connection conn = Connectsql.getConn();
 		String sql = "select isread from friendrecord where rid=?";
 		PreparedStatement pstmt;
@@ -112,8 +118,8 @@ public class Record {
 	 * @param rid 目标rid
 	 * @return 修改状态是否成功
 	 */
-	static public boolean readRecord(int rid) {
-		if (isRead(rid))
+	static public boolean readRecordOfFriend(int rid) {
+		if (isReadOfFriend(rid))
 			return false;
 		Connection conn = Connectsql.getConn();
 		String sql = "update friendrecord set isread=? where rid=?";
@@ -139,13 +145,13 @@ public class Record {
 	 */
 	static public boolean createFriendRecord(String message, String senderId, String receiverId, Date recordTime) {
 		Connection conn = Connectsql.getConn();
-		String sql = "insert into friendrecord (rid, message, sender_uid, receiver_uid, recordtime, isread) "
-				+ "values(?,?,?,?,?,?)";
+		String sql = "insert into friendrecord (message, sender_uid, receiver_uid, recordtime, isread) "
+				+ "values(?,?,?,?,?)";
 		Timestamp time = new Timestamp(recordTime.getTime());
 		PreparedStatement pstmt;
 		try {
 			pstmt = (PreparedStatement)conn.prepareStatement(sql);
-			pstmt.setNull(1, Types.INTEGER); // rid自增长
+			pstmt.setString(1, message);
 			pstmt.setString(2, senderId);
 			pstmt.setString(3, receiverId);
 			pstmt.setTimestamp(4, time);
@@ -212,7 +218,7 @@ public class Record {
 	 * @param uid 目标用户(接收者)id
 	 * @return 修改状态是否成功
 	 */
-	static public boolean readAllRecord(String uid) {
+	static public boolean readAllRecordOfFriend(String uid) {
 		Connection conn = Connectsql.getConn();
 		String sql = "select rid from friendrecord "
 				+ "where receiver_uid = ? and isread = ?";
@@ -223,10 +229,217 @@ public class Record {
 			pstmt.setBoolean(2, false);
 			ResultSet rs = pstmt.executeQuery();
 			while (rs.next())
-				readRecord(rs.getInt("rid"));
+				readRecordOfFriend(rs.getInt("rid"));
 			return true;
 		} catch (SQLException e) {}
 		return false;
 	}
 	
+	/**
+	 * 获取目标消息记录信息
+	 * @author wsq
+	 * @param rid 目标记录id
+	 * @return 目标消息记录，包括聊天内容，发送者id，所在群id，发送时间
+	 */
+	static public GroupRecordInfo getRecordOfGroupInfoById(int rid) {
+		Connection conn = Connectsql.getConn();
+		String sql = "select message, user_uid, group_gid, recordtime from grouprecord where rid = ?";
+		PreparedStatement pstmt;
+		try {
+			pstmt = (PreparedStatement)conn.prepareStatement(sql);
+		    pstmt.setInt(1, rid);
+		    ResultSet rs = pstmt.executeQuery();
+		    while (rs.next())
+		    	return new GroupRecordInfo(rs.getString("message"), rs.getString("user_uid"), rs.getInt("group_gid"), rs.getTimestamp("recordtime"));
+		    return null;
+		} catch (SQLException e) {}
+		return null;
+	}
+	
+	/**
+	 * 获取目标群内聊天记录rid列表
+	 * @author wsq
+	 * @param gid 目标群id 
+	 * @return 目标群聊天记录rid列表
+	 */
+	static public List<Integer> getRecordOfGroupInfoByGroup(int gid) {
+		List<Integer> info = new ArrayList<>();
+		Connection conn = Connectsql.getConn();
+		String sql = "select rid from grouprecord where group_gid = ?";
+		PreparedStatement pstmt;
+		try {
+			pstmt = (PreparedStatement)conn.prepareStatement(sql);
+			pstmt.setInt(1, gid);
+			ResultSet rs = pstmt.executeQuery();
+			while (rs.next())
+				info.add(rs.getInt("rid"));
+			return info;
+		} catch (SQLException e) {}
+		return null;
+	}
+	
+	/**
+	 * @author wsq
+	 * @param rid 目标消息id
+	 * @param uid 目标用户id
+	 * @return 目标用户是否读过目标群消息
+	 */
+	static public boolean isReadOfGroup(int rid, String uid) {
+		Connection conn = Connectsql.getConn();
+		String sql = "select * from groupnotread where rid = ? and receiver_id = ?";
+		PreparedStatement pstmt;
+		try {
+			pstmt = (PreparedStatement) conn.prepareStatement(sql);
+			pstmt.setInt(1, rid);
+			pstmt.setString(2, uid);
+			ResultSet rs = pstmt.executeQuery();
+			while (rs.next())
+				return true;
+		} catch (SQLException e) {}
+		return false;
+	}
+	
+	/**
+	 * 删除目标用户在目标群未读消息数据库中的记录
+	 * @author wsq
+	 * @param uid 目标用户
+	 * @param gid 目标群
+	 * @return 目标用户在目标群中的未读消息记录删除是否成功
+	 */
+	static public boolean readRecordOfGroup(String uid, int gid) {
+		Connection conn = Connectsql.getConn();
+		String sql = "delete from groupnotread where receiver_id = ? and gid = ?";
+		PreparedStatement pstmt;
+		try {
+			pstmt = (PreparedStatement) conn.prepareStatement(sql);
+			pstmt.setString(1, uid);
+			pstmt.setInt(2, gid);
+			pstmt.executeUpdate();
+			return true;
+		} catch (SQLException e) {}
+		return false;
+	}
+	
+	/**
+	 * 群未读消息表中添加记录
+	 * @author wsq
+	 * @param rid 目标记录id
+	 * @param receiver_id 接收者id
+	 * @return 添加记录是否成功
+	 */
+	static public boolean createGroupNotRead(int rid, String receiver_id, int gid) {
+		Connection conn = Connectsql.getConn();
+		String sql = "insert into groupnotread (rid, receiver_id, gid) "
+				+ "values(?,?,?)";
+		PreparedStatement pstmt;
+		try {
+			pstmt = (PreparedStatement)conn.prepareStatement(sql);
+			pstmt.setInt(1, rid);
+			pstmt.setString(2, receiver_id);
+			pstmt.setInt(3, gid);
+			pstmt.executeUpdate();
+			return true;
+		} catch (SQLException e) {}
+		return false;
+	}
+	
+	/**
+	 * 创建一个群聊天记录，并对每一个群成员(发送者除外)增添以一条未读消息记录
+	 * @author wsq
+	 * @param message 消息内容
+	 * @param sender_id 发送者id
+	 * @param group_id 目标群id
+	 * @return 操作是否成功
+	 */
+	static public boolean createGroupRecord(String message, String sender_id, int group_id, Date recordTime) {
+		Connection conn = Connectsql.getConn();
+		String sql = "insert into grouprecord (message, user_uid, group_gid, recordtime) "
+				+ "values(?,?,?,?)";
+		Timestamp time = new Timestamp(recordTime.getTime());
+		PreparedStatement pstmt;
+		try {
+			pstmt = (PreparedStatement)conn.prepareStatement(sql);
+			pstmt.setString(1, message);
+			pstmt.setString(2, sender_id);
+			pstmt.setInt(3, group_id);
+			pstmt.setTimestamp(4, time);
+			pstmt.executeUpdate();
+			int rid = 0;
+			ResultSet rs = pstmt.getGeneratedKeys();
+			if (rs.next())
+				rid = rs.getInt(1);
+			List<String> receivers = Group.getGroupMembers(group_id);
+			receivers.remove(sender_id);
+			for (int i = 0; i < receivers.size(); i++)
+				createGroupNotRead(rid, receivers.get(i), group_id);
+			return true;
+		} catch (SQLException e) {}
+		return false;
+	}
+	
+	/**
+	 * @author wsq
+	 * @param uid 目标用户
+	 * @return 获取目标用户未读消息群
+	 */
+	static public List<Integer> getGroupNotRead(String uid) {
+		List<Integer> info = new ArrayList<>();
+		Connection conn = Connectsql.getConn();
+		String sql = "select gid from groupnotread where receiver_id = ?";
+		PreparedStatement pstmt;
+		try {
+			pstmt = (PreparedStatement) conn.prepareStatement(sql);
+			pstmt.setString(1, uid);
+			ResultSet rs = pstmt.executeQuery();
+			while (rs.next()) {
+				if (!info.contains(rs.getInt("gid")))
+					info.add(rs.getInt("gid"));
+			}
+			return info;
+		} catch (SQLException e) {}
+		return null;
+	}
+	
+	/**
+	 * 删除目标群相关所有群消息记录(用于群解散)
+	 * @param gid 目标群id
+	 * @return 删除操作是否成功
+	 */
+	static public boolean clearGroupRecord(int gid) {
+		Connection conn = Connectsql.getConn();
+		String sql1 = "delete from grouprecord where group_gid = ?";
+		String sql2 = "delete from groupnotread where gid = ?";
+		PreparedStatement pstmt;
+		try {
+			pstmt = (PreparedStatement)conn.prepareStatement(sql1);
+			pstmt.setInt(1, gid);
+			pstmt.executeUpdate();
+			pstmt = (PreparedStatement)conn.prepareStatement(sql2);
+			pstmt.setInt(1, gid);
+			pstmt.executeUpdate();
+			return true;
+		} catch (SQLException e) {}
+		return false;
+	}
+	
+	/**
+	 * @author wsq
+	 * @param uid 目标用户id
+	 * @param gid 目标群id
+	 * @return 删除用户在群中所有言论是否成功
+	 */
+	static public boolean clearGroupRecordForUser(String uid, int gid) {
+		Connection conn = Connectsql.getConn();
+		String sql = "delete from grouprecord where receiver_id = ? and group_gid = ?";
+		PreparedStatement pstmt;
+		try {
+			pstmt = (PreparedStatement)conn.prepareStatement(sql);
+			pstmt.setString(1, uid);
+			pstmt.setInt(2, gid);
+			pstmt.executeUpdate();
+			return true;
+		} catch (SQLException e) {}
+		return false;
+	}
 }
+	
