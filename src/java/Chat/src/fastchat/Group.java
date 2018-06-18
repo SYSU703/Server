@@ -220,4 +220,13 @@ public class Group {
 		return false;
 	}
 	
+	/**
+	 * 目标用户是否是目标群成员
+	 * @param uid 目标用户id
+	 * @param gid 目标群id
+	 * @return 目标用户是否是群成员
+	 */
+	static public boolean isMember(String uid, int gid) {
+		return Group.getGroupMembers(gid).contains(uid);
+	}
 }

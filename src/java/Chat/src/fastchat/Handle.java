@@ -1,9 +1,11 @@
 package fastchat;
 
 import fastchat.Connectsql;
+import fastchat.Mail;
 import models.*;
 
 import java.util.List;
+import java.util.Properties;
 import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.PreparedStatement;
@@ -17,6 +19,10 @@ import java.text.ParseException;
 import java.text.SimpleDateFormat;
 
 import java.util.Random;
+
+import javax.mail.Message;
+import javax.mail.Session;
+import javax.mail.Transport;
 
 /**
  * @author wrf
@@ -51,6 +57,36 @@ public class Handle {
 		User.changeState(uid, false);
 		return true;
 	}
+	
+	
+	/**
+	 * @author wrf
+	 * 发送验证码功能
+	 * @param targetEmail 输入的注册邮箱
+	 * @return 发送的验证码，看是否匹配，如果出现错误则返回null
+	 */
+	static public String sendEmail(String targetEmail) {
+    	try {
+    	Properties prop = new Properties();
+        prop.setProperty("mail.smtp.host", "smtp.163.com");
+        prop.setProperty("mail.transport.protocol", "smtp");
+        prop.setProperty("mail.smtp.auth", "true");
+        
+        Session session = Session.getInstance(prop); // 创建出与指定邮件服务器会话的session
+        session.setDebug(true);
+        Message message = Mail.createMessage(session, targetEmail); // 创建会话信息
+        Transport ts = session.getTransport();
+        ts.connect("m15639081168@163.com", "tigerone987"); // 连接上邮件服务器，其内部会自动帮你进行base64编码
+        ts.sendMessage(message, message.getAllRecipients()); // 发送邮件目的方
+        ts.close(); // 断开与服务器的连接
+    	} catch (Exception e) {
+    		return null;
+    	}
+        return Mail.a;
+    }
+	
+	
+	
 	
 	/**
 	 * @author wsq
@@ -658,6 +694,7 @@ public class Handle {
 			e.printStackTrace();
 			return false;
 		}
+		Record.clearGroupRecord(gid);
 		if (Group.dropGroupBygid(gid) == false) return false;  // 因为主键约束，所以必须最后删除groupchat表中的内容
 		return true;
 	}
@@ -685,6 +722,30 @@ public class Handle {
 		} catch (SQLException e) {}
 		return null;
 	}
+	
+	/**
+	 * 退群操作，用户不能是管理员
+	 * @author wsq
+	 * @param uid 目标用户
+	 * @param gid 目标群
+	 * @return 退群是否成功
+	 */
+	static public boolean quitGroup(String uid, int gid) {
+		if (uid.equals(Handle.getGroupManager(gid))) return false; // 当前用户为管理员
+		Connection conn = Connectsql.getConn();
+		String sql = "delete from groupmember where user_uid=? and group_gid=?";
+		PreparedStatement pstmt;
+		try {
+			pstmt = (PreparedStatement)conn.prepareStatement(sql);
+			pstmt.setString(1, uid);
+			pstmt.setInt(2, gid);
+			pstmt.executeUpdate();
+			Record.readRecordOfGroup(uid, gid);
+			Record.clearGroupRecordForUser(uid, gid);
+			return true;
+		} catch (SQLException e) {}
+		return false;
+	}
 	/**群管理模块函数结束**/
 	
 	
@@ -700,12 +761,12 @@ public class Handle {
 	 * @param friend_uid 好友id
 	 * @return 聊天记录列表，每一条信息包括信息内容，发送人ID，接收人ID，记录时间
 	 */
-	static public List<RecordInfo> getRecordWithFriend(String uid, String friend_uid) {
-		List<Integer> rids = Record.getRecordIdsByUser(uid, friend_uid);
-		List<RecordInfo> info = new ArrayList<>();
+	static public List<FriendRecordInfo> getRecordWithFriend(String uid, String friend_uid) {
+		List<Integer> rids = Record.getRecordOfFriendIdsByUser(uid, friend_uid);
+		List<FriendRecordInfo> info = new ArrayList<>();
 		for (int i = 0; i < rids.size(); i++)
-			info.add(Record.getRecordInfoById(rids.get(i)));
-		Record.readAllRecord(uid); // 此时已经获取了所有消息，因此原先的未读消息变为已读
+			info.add(Record.getRecordOfFriendInfoById(rids.get(i)));
+		Record.readAllRecordOfFriend(uid); // 此时已经获取了所有消息，因此原先的未读消息变为已读
 		return info;
 	}
 	
@@ -717,13 +778,14 @@ public class Handle {
 	 * @param message 信息
 	 * @return 发送信息是否成功
 	 */
-	static public boolean sendMessage(String sender_uid, String receiver_uid, String message) {
+	static public boolean sendFriendRecord(String sender_uid, String receiver_uid, String message) {
 		Date currentTime = new Date();
 		return Record.createFriendRecord(message, sender_uid, receiver_uid, currentTime);
 	}
 	
 	/**
 	 * 获取向目标用户发送未读消息的用户列表
+	 * @author wsq
 	 * @param uid 目标用户
 	 * @return 向目标用户发送了未读消息的用户列表，每条记录包括用户id，用户昵称，状态(是否在线)
 	 */
@@ -734,4 +796,57 @@ public class Handle {
 			info.add(Handle.getSimpleUserInfo(uids.get(i)));
 		return info;
 	}
+	/**好友消息记录模块函数结束**/
+	
+	
+
+	/**群消息记录模块开始**/
+	
+	/**
+	 * 获取目标用户具有未读消息的群列表
+	 * @author wsq
+	 * @param uid 目标id
+	 * @return 目标用户具有未读消息的列表，每条记录包括群id，群名
+	 */
+	static public List<SimpleGroupInfo> getGroupNotRead(String uid) {
+		List<Integer> gids = Record.getGroupNotRead(uid);
+		List<SimpleGroupInfo> info = new ArrayList<> ();
+		for (int i = 0; i < gids.size(); i++)
+			info.add(Handle.getSimpleGroupInfo(gids.get(i)));
+		return info;
+	}
+	
+	/**
+	 * 获取目标群聊天记录
+	 * @author wsq
+	 * @param uid 目标用户id
+	 * @param gid 目标群id
+	 * @return 目标群所以聊天记录，每条记录包括内容，发送者id，群id，消息时间
+	 */
+	static public List<GroupRecordInfo> getRecordWithGroup(String uid, int gid) {
+		if (!Group.isMember(uid, gid))
+			return null;
+		List<GroupRecordInfo> info = new ArrayList<> ();
+		List<Integer> rids = Record.getRecordOfGroupInfoByGroup(gid);
+		for (int i = 0; i < rids.size(); i++) {
+			info.add(Record.getRecordOfGroupInfoById(rids.get(i)));
+		}
+		Record.readRecordOfGroup(uid, gid); // 将群中所有未读消息置为已读
+		return info;
+	}
+	
+	/**
+	 * 向群中发送消息
+	 * @param message 消息内容
+	 * @param sender_id 发送者id
+	 * @param gid 群id
+	 * @return 发送消息是否成功
+	 */
+	static public boolean sendGroupRecord(String message, String sender_id, int gid) {
+		if (!Group.isMember(sender_id, gid))
+			return false;
+		Date currentTime = new Date();
+		return Record.createGroupRecord(message, sender_id, gid, currentTime);
+	}
+	/**群消息记录模块结束**/
 }
