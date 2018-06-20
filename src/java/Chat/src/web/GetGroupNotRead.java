@@ -3,9 +3,7 @@ package web;
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.PrintWriter;
-import java.text.ParsePosition;
-import java.text.SimpleDateFormat;
-import java.util.Date;
+import java.util.List;
 
 import javax.servlet.ServletException;
 import javax.servlet.annotation.WebServlet;
@@ -15,19 +13,21 @@ import javax.servlet.http.HttpServletResponse;
 
 import com.alibaba.fastjson.JSONObject;
 
-import fastchat.*;
+import fastchat.Handle;
+import models.SimpleGroupInfo;
+import models.SimpleUserInfo;
 
 /**
- * Servlet implementation class ModifyUser
+ * Servlet implementation class GetGroupNotRead
  */
-@WebServlet("/ModifyUser")
-public class ModifyUser extends HttpServlet {
+@WebServlet("/GetGroupNotRead")
+public class GetGroupNotRead extends HttpServlet {
 	private static final long serialVersionUID = 1L;
        
     /**
      * @see HttpServlet#HttpServlet()
      */
-    public ModifyUser() {
+    public GetGroupNotRead() {
         super();
         // TODO Auto-generated constructor stub
     }
@@ -37,7 +37,7 @@ public class ModifyUser extends HttpServlet {
 	 */
 	protected void doGet(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
 		// TODO Auto-generated method stub
-		System.out.println("modify user information get method");
+		System.out.println("get groups have not read message get method");
 		doPost(request, response);
 	}
 
@@ -46,7 +46,7 @@ public class ModifyUser extends HttpServlet {
 	 */
 	protected void doPost(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
 		// TODO Auto-generated method stub
-		System.out.println("modify user information post method");
+		System.out.println("get groups have not read message post method");
 		request.setCharacterEncoding("UTF-8");
         response.setCharacterEncoding("UTF-8");
 		response.setContentType("application/json;charset=UTF-8");
@@ -59,23 +59,17 @@ public class ModifyUser extends HttpServlet {
 		String data = wholeStr;
 		JSONObject jsonObject = JSONObject.parseObject(data);
 		Handle handle = new Handle();
+		String result = new String();
 		try {
 			String username = jsonObject.getString("username");
-			String password = jsonObject.getString("password");
-			String nickname = jsonObject.getString("nickname");
-			String sex = jsonObject.getString("sex");
-			String strDate = null;
-			if (handle.modifyMyInfo(username, password, nickname, strDate, sex)) {
-				String result = "{\"result\":\"success\"}";
-				out.write(result);
-			} else {
-				String result = "{\"result\":\"fail\"}";
-				out.write(result);
-			}
+			List<SimpleGroupInfo> groupList = handle.getGroupNotRead(username);
+			JSONObject jsonObject2 = new JSONObject();
+			jsonObject2.put("groupcount", groupList.size());
+			jsonObject2.put("grouplist", groupList);
+			result = JSONObject.toJSONString(jsonObject2);
 		} catch (Exception e) {
-			String result = "{\"result\":\"fail\"}";
-			out.write(result);
 		} finally {
+			out.write(result);
 			out.flush();  
 	        out.close();
 		}

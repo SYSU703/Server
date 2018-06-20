@@ -64,7 +64,7 @@ public class Register extends HttpServlet {
 			String nickname = jsonObject.getString("nickname");
 			String sex = jsonObject.getString("sex");
 			boolean userstate = false;
-			String strDate = jsonObject.getString("year") + "-" + jsonObject.getString("month")+ "-" + jsonObject.getString("day");
+			String strDate = "1858-12-31";
 			if (handle.signin(username, password, nickname, strDate, sex)) {
 				String result = "{\"result\":\"success\"}";
 				out.write(result);

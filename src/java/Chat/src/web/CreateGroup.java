@@ -58,13 +58,11 @@ public class CreateGroup extends HttpServlet {
 		try {
 			String groupname = jsonObject.getString("groupname");
 			String username = jsonObject.getString("username");
-			 if (handle.createGroup(username, groupname)) {		
-				String result = "{\"result\":\"success\"}";
-				out.write(result);
-			} else {
-				String result = "{\"result\":\"fail\"}";
-				out.write(result);
-			}
+			JSONObject jsonObject2 = new JSONObject();
+			String createResult = handle.createGroup(username, groupname);
+			jsonObject2.put("result", createResult);
+			String result = JSONObject.toJSONString(jsonObject2);
+			out.write(result);
 		} catch (Exception e) {
 			String result = "{\"result\":\"fail\"}";
 			out.write(result);

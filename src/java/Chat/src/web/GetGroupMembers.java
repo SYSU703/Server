@@ -38,7 +38,7 @@ public class GetGroupMembers extends HttpServlet {
 		// TODO Auto-generated method stub
 		System.out.println("get all group members get method");
 		doPost(request, response);
-		}
+	}
 
 	/**
 	 * @see HttpServlet#doPost(HttpServletRequest request, HttpServletResponse response)
