@@ -63,8 +63,8 @@ public class GetFriendNotRead extends HttpServlet {
 			String username = jsonObject.getString("username");
 			List<SimpleUserInfo> userList = handle.getFriendNotRead(username);
 			JSONObject jsonObject2 = new JSONObject();
-			jsonObject2.put("usercount", userList.size());
-			jsonObject2.put("userlist", userList);
+			jsonObject2.put("userCount", userList.size());
+			jsonObject2.put("userList", userList);
 			result = JSONObject.toJSONString(jsonObject2);
 		} catch (Exception e) {
 		} finally {
