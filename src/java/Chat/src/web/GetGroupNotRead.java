@@ -64,8 +64,8 @@ public class GetGroupNotRead extends HttpServlet {
 			String username = jsonObject.getString("username");
 			List<SimpleGroupInfo> groupList = handle.getGroupNotRead(username);
 			JSONObject jsonObject2 = new JSONObject();
-			jsonObject2.put("groupcount", groupList.size());
-			jsonObject2.put("grouplist", groupList);
+			jsonObject2.put("groupCount", groupList.size());
+			jsonObject2.put("groupList", groupList);
 			result = JSONObject.toJSONString(jsonObject2);
 		} catch (Exception e) {
 		} finally {
