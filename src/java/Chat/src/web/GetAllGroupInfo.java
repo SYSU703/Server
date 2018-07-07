@@ -59,7 +59,7 @@ public class GetAllGroupInfo extends HttpServlet {
 		String result = new String();
 		try {
 			String username = jsonObject.getString("username");
-			List<SimpleGroupInfo> groupList = handle.getAllGroupInfo(username);
+			List<CompleteGroupInfo> groupList = handle.getAllGroupInfo(username);
 			JSONObject jsonObject2 = new JSONObject();
 			jsonObject2.put("groupcount", groupList.size());
 			jsonObject2.put("grouplist", groupList);

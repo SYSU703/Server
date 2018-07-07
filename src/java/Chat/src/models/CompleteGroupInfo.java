@@ -13,6 +13,7 @@ public class CompleteGroupInfo {
 	private String managerId;
 	private String managerNickName;
 	private String memberNumber;
+	private GroupRecordInfo lastMessage;
 	
 	public CompleteGroupInfo(int gid, String announce, String gName, String mid, String mNickName, int mNum) {
 		groupId = String.valueOf(gid);
@@ -21,8 +22,19 @@ public class CompleteGroupInfo {
 		managerId = mid;
 		managerNickName = mNickName;
 		memberNumber = String.valueOf(mNum);
+		lastMessage = null;
 	}
 
+	public CompleteGroupInfo(int gid, String announce, String gName, String mid, String mNickName, int mNum, GroupRecordInfo message) {
+		groupId = String.valueOf(gid);
+		announcement = announce;
+		groupName = gName;
+		managerId = mid;
+		managerNickName = mNickName;
+		memberNumber = String.valueOf(mNum);
+		lastMessage = message;
+	}
+	
 	public String getGroupId() {
 		return groupId;
 	}
@@ -77,6 +89,14 @@ public class CompleteGroupInfo {
 
 	public void setMemberNumber(String memberNumber) {
 		this.memberNumber = memberNumber;
+	}
+
+	public GroupRecordInfo getLastMessage() {
+		return lastMessage;
+	}
+
+	public void setLastMessage(GroupRecordInfo lastMessage) {
+		this.lastMessage = lastMessage;
 	}
 	
 	

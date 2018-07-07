@@ -12,21 +12,25 @@ import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
 
+import com.mysql.jdbc.Statement;
+
 public class Group {
 
 	/**
 	 * @author wrf
 	 * 创建群功能，输入相关信息，返回是否成功建立
+	 * @throws SQLException 
 	 */
-	static public int createGroup(String announcement, String groupname, String user_uid) {
+	static public int createGroup(String announcement, String groupname, String user_uid) throws SQLException {
 		if (groupname.length() <= 0) return -1;
 		int result = 0;
 		Connection conn = Connectsql.getConn();
 		String sql = "insert into groupchat (announcement, groupname, user_uid) "
 				+ "values(?,?,?)"; 
-		PreparedStatement pstmt;
+		PreparedStatement pstmt = null;
 	    try {
- 	        pstmt = (PreparedStatement) conn.prepareStatement(sql);
+ 	        pstmt = (PreparedStatement) conn.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS
+);
  	        pstmt.setString(1, announcement);
  	        pstmt.setString(2, groupname);
  	        pstmt.setString(3, user_uid); // 设置相关属性内容
@@ -34,12 +38,13 @@ public class Group {
 	        ResultSet rs = pstmt.getGeneratedKeys();
 	        while (rs.next())
 	        	result = rs.getInt(1);
-	        pstmt.close();
-	        conn.close();
 		} catch (SQLException e) {
 			e.printStackTrace();
 		    return -1;
-		}
+		} finally {
+			   pstmt.close();
+		       conn.close();
+		   }
 	    Group.addGroupmemebr(result, user_uid);
 		return result;
 	}
@@ -48,11 +53,12 @@ public class Group {
 	/**
 	 * @author wrf
 	 * 传入gid判断是否存在改群聊
+	 * @throws SQLException 
 	 */
-	static public boolean isExistGroup(int gid) {
+	static public boolean isExistGroup(int gid) throws SQLException {
 		Connection conn = Connectsql.getConn();
 		String sql = "select * from groupchat";
-		PreparedStatement pstmt;
+		PreparedStatement pstmt = null;
 		try {
 		    pstmt = (PreparedStatement)conn.prepareStatement(sql);
 		    ResultSet rs = pstmt.executeQuery(sql);
@@ -61,39 +67,46 @@ public class Group {
 		    		return true;
 		        }
 		    }
-		} catch (SQLException e) {}
+		} catch (SQLException e) {
+			return false;
+		} finally {
+			   pstmt.close();
+		       conn.close();
+		   }
 		return false;
 	}
 	
-	static public boolean dropGroupBygid (int gid) {
+	static public boolean dropGroupBygid (int gid) throws SQLException {
 		if (Group.isExistGroup(gid) == false) return false;
 		Connection conn = Connectsql.getConn();
 		String sql = "delete from groupchat where gid=?";
-		PreparedStatement pstmt;
+		PreparedStatement pstmt = null;
 		try {
 		    pstmt = (PreparedStatement) conn.prepareStatement(sql);
 		    pstmt.setInt(1, gid);
 		    pstmt.executeUpdate();       
-		    pstmt.close();
-		    conn.close();
 		} catch (SQLException e) {
 			e.printStackTrace();
 			return false;
-		}
+		} finally {
+			   pstmt.close();
+		       conn.close();
+		   }
 		return true;
 	}
 
 	/**
 	  * @author wrf
 	  * 获取特定群的群成员id
+	 * @throws SQLException 
 	  */
-	static public List<String> getGroupMembers(int gid) {
+	static public List<String> getGroupMembers(int gid) throws SQLException {
 		if (!Group.isExistGroup(gid))
 			return null;
 		List<String> groupMembers = new ArrayList<>();
 		Connection conn = Connectsql.getConn();
 		String sql = "select user_uid from groupmember where group_gid=?";
-		PreparedStatement pstmt;
+		PreparedStatement pstmt = null;
 		try {
 			pstmt = (PreparedStatement) conn.prepareStatement(sql);
 			pstmt.setInt(1, gid);
@@ -106,29 +119,34 @@ public class Group {
 		} catch (SQLException e) {
 			e.printStackTrace();
 			return null;
-		}
+		} finally {
+			   pstmt.close();
+		       conn.close();
+		   }
 	}
 	
 	/**
 	 * @author wrf
 	 * 添加群成员，传入gid和uid，该表表示所有群的所有成员
+	 * @throws SQLException 
 	 */
-	static public boolean addGroupmemebr(int gid, String uid) {
+	static public boolean addGroupmemebr(int gid, String uid) throws SQLException {
 		Connection conn = Connectsql.getConn();
 		String sql = "insert into groupmember (group_gid, user_uid) " + "values(?,?)";  // 需要将创建者加入群成员表
-		PreparedStatement qstmt;
+		PreparedStatement pstmt = null;
 		try {
-	        qstmt = (PreparedStatement) conn.prepareStatement(sql);
-	        qstmt.setInt(1, gid);
-            qstmt.setString(2, uid);
-            qstmt.executeUpdate();
-            qstmt.close();
-	        conn.close();
+			pstmt = (PreparedStatement) conn.prepareStatement(sql);
+			pstmt.setInt(1, gid);
+			pstmt.setString(2, uid);
+			pstmt.executeUpdate();
+    		return true;
 		} catch (SQLException e) {
 			//e.printStackTrace();
 		    return false;
-		}
-		return true;
+		} finally {
+			   pstmt.close();
+		       conn.close();
+		   }
 	}
 	
 	
@@ -138,57 +156,62 @@ public class Group {
 	/**
 	 * @author wrf
 	 * 删除groupapply表中的某个条目
+	 * @throws SQLException 
 	 */
-	static public boolean dropGroupApply (String uid, int gid) {
+	static public boolean dropGroupApply (String uid, int gid) throws SQLException {
 		if (Group.isExistGroupApply(uid, gid) == false) return false;  // 确保存在该条目
 		Connection conn = Connectsql.getConn();
 		String sql = "delete from groupapply where group_gid=? and user_uid=?";
-		PreparedStatement pstmt;
+		PreparedStatement pstmt = null;
 		try {
 		    pstmt = (PreparedStatement) conn.prepareStatement(sql);
 		    pstmt.setInt(1, gid);
 		    pstmt.setString(2, uid);
 		    pstmt.executeUpdate();       
-		    pstmt.close();
-		    conn.close();
 		} catch (SQLException e) {
 			e.printStackTrace();
 			return false;
-		}
+		} finally {
+			   pstmt.close();
+		       conn.close();
+		   }
 		return true;
 	}
 	
 	/**
 	 * @author wrf
 	 * 删除groupinvite表中的某个条目
+	 * @throws SQLException 
 	 */
-	static public boolean dropGroupInvite (int gid, String uid) {
+	static public boolean dropGroupInvite (int gid, String uid) throws SQLException {
 		if (Group.isExistGroupInvite(gid, uid) == false) return false;  // 确保存在该条目
 		Connection conn = Connectsql.getConn();
 		String sql = "delete from groupinvite where user_uid=? and group_gid=?";
-		PreparedStatement pstmt;
+		PreparedStatement pstmt = null;
 		try {
 		    pstmt = (PreparedStatement) conn.prepareStatement(sql);
 		    pstmt.setInt(2, gid);
 		    pstmt.setString(1, uid);
 		    pstmt.executeUpdate();       
-		    pstmt.close();
-		    conn.close();
 		} catch (SQLException e) {
 			e.printStackTrace();
 			return false;
-		}
+		} finally {
+			   pstmt.close();
+		       conn.close();
+		   }
 		return true;
 	}
 	
 	/**
 	 * @author wrf
 	 * 在groupapply表中是否存在某个条目
+	 * @throws SQLException 
 	 */
-	static public boolean isExistGroupApply (String uid, int gid) {
+	static public boolean isExistGroupApply (String uid, int gid) throws SQLException {
 		Connection conn = Connectsql.getConn();
 		String sql = "select * from groupapply";
-		PreparedStatement pstmt;
+		PreparedStatement pstmt = null;
 		try {
 		    pstmt = (PreparedStatement)conn.prepareStatement(sql);
 		    ResultSet rs = pstmt.executeQuery(sql);
@@ -198,18 +221,23 @@ public class Group {
 		    	}
 		    }
 		    return false;
-		} catch (SQLException e) {}
-		return false;
+		} catch (SQLException e) {
+			return false;
+		} finally {
+			   pstmt.close();
+		       conn.close();
+		   }
 	}
 	
 	/**
 	 * @author wrf
 	 * 在groupinvite表中是否存在某个条目
+	 * @throws SQLException 
 	 */
-	static public boolean isExistGroupInvite (int gid, String uid) {
+	static public boolean isExistGroupInvite (int gid, String uid) throws SQLException {
 		Connection conn = Connectsql.getConn();
 		String sql = "select * from groupinvite";
-		PreparedStatement pstmt;
+		PreparedStatement pstmt = null;
 		try {
 		    pstmt = (PreparedStatement)conn.prepareStatement(sql);
 		    ResultSet rs = pstmt.executeQuery(sql);
@@ -219,8 +247,12 @@ public class Group {
 		    	}
 		    }
 		    return false;
-		} catch (SQLException e) {}
-		return false;
+		} catch (SQLException e) {
+			return false;
+		} finally {
+			   pstmt.close();
+		       conn.close();
+		   }
 	}
 	
 	/**
@@ -228,8 +260,9 @@ public class Group {
 	 * @param uid 目标用户id
 	 * @param gid 目标群id
 	 * @return 目标用户是否是群成员
+	 * @throws SQLException 
 	 */
-	static public boolean isMember(String uid, int gid) {
+	static public boolean isMember(String uid, int gid) throws SQLException {
 		return Group.getGroupMembers(gid).contains(uid);
 	}
 }

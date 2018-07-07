@@ -6,6 +6,7 @@ import fastchat.User;
 import fastchat.Friend;
 import fastchat.Group;
 import java.sql.Date;
+import java.sql.SQLException;
 import java.util.Iterator;  
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
@@ -15,7 +16,7 @@ import java.util.Scanner;
 
 public class main {
 
-	public static void main(String[] args) {
+	public static void main(String[] args) throws SQLException {
 		// TODO Auto-generated method stub
 		
 		//Scanner sc_a = new Scanner(System.in);   
@@ -32,7 +33,7 @@ public class main {
 		String b = sc_b.nextLine();  //读取字符串型输入
 		System.out.println(Handle.changeFriendAddState(a, b, true));
 		*/
-		
+		Handle.modifyGroup(1, "enheng", "abcd");
 		/*测试getGroupbyGid/getAllGroupApply函数
 		Scanner sc_a = new Scanner(System.in);   
 		System.out.println("请输入群名字：");   

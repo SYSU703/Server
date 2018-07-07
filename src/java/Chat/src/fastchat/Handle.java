@@ -19,9 +19,6 @@ import java.text.SimpleDateFormat;
 
 import java.util.Random;
 
-import javax.mail.Message;
-import javax.mail.Session;
-import javax.mail.Transport;
 
 /**
  * @author wrf
@@ -36,7 +33,7 @@ public class Handle {
 	 * @param targetEmail 输入的注册邮箱
 	 * @return 发送的验证码，看是否匹配，如果出现错误则返回null
 	 */
-	static public String sendEmail(String targetEmail) {
+	/*static public String sendEmail(String targetEmail) {
     	try {
     	Properties prop = new Properties();
         prop.setProperty("mail.smtp.host", "smtp.163.com");
@@ -54,7 +51,7 @@ public class Handle {
     		return null;
     	}
         return Mail.a;
-    }
+    }*/
 	
 	
 	/**登录模块函数开始**/
@@ -64,8 +61,9 @@ public class Handle {
 	 * @param uid 登录用户id
 	 * @param password 登录用户密码
 	 * @return 登录是否成功
+	 * @throws SQLException 
 	 */
-	static public boolean login(String uid, String password) {
+	static public boolean login(String uid, String password) throws SQLException {
 		if (User.isExistUser(uid, password)) {
 			User.changeState(uid, true);
 			return true;
@@ -79,8 +77,9 @@ public class Handle {
 	 * 用户登出，改变用户状态为离线状态
 	 * @param uid 注销用户的id
 	 * @return 是否成功注销，应始终为true
+	 * @throws SQLException 
 	 */
-	static public boolean logout(String uid) {
+	static public boolean logout(String uid) throws SQLException {
 		User.changeState(uid, false);
 		return true;
 	}
@@ -93,8 +92,9 @@ public class Handle {
 	 * @param birthday 用户生日，String类型，在本函数中包装成Date类型
 	 * @param sex 性别
 	 * @return 注册是否成功
+	 * @throws SQLException 
 	 */
-	static public boolean signin(String uid, String password, String nickName, String birthday, String sex) {
+	static public boolean signin(String uid, String password, String nickName, String birthday, String sex) throws SQLException {
 		if (User.isExistUser(uid)) {
 			System.out.println("userId: " + uid + " is exist");
 			return false;
@@ -121,21 +121,27 @@ public class Handle {
 	 * 获取某个人具体个人信息
 	 * @param uid 查询用户的id
 	 * @return 完整的用户信息，包括用户id，昵称，生日，性别，是否在线，如果是用户自身而非对其他人的搜索，则也返回密码
+	 * @throws SQLException 
 	 */
-	static public CompleteUserInfo getCompleteUserInfo(String uid) {
+	static public CompleteUserInfo getCompleteUserInfo(String uid) throws SQLException {
 		Connection conn = Connectsql.getConn();
 		if (!User.isExistUser(uid)) return null;
 		String sql = "select unickname, birthday, sex, userstate from user where uid=?";
-		PreparedStatement pstmt;
+		PreparedStatement pstmt = null;
 		try {
 		    pstmt = (PreparedStatement)conn.prepareStatement(sql);
 		    pstmt.setString(1, uid);
 		    ResultSet rs = pstmt.executeQuery();
-		    while (rs.next())
+		    while (rs.next()) {
 		    	return new CompleteUserInfo(uid, rs.getString(1), rs.getDate(2), rs.getBoolean(3), rs.getBoolean(4));
+		    }
 		    return null;
-		} catch (SQLException e) {}
-		return null;
+		} catch (SQLException e) {
+			return null;
+		} finally {
+			   pstmt.close();
+		       conn.close();
+		   }
 	}
 	
 	/**
@@ -146,8 +152,9 @@ public class Handle {
 	 * @param birthday 修改生日，如果没有修改生日则为之前的值
 	 * @param sex 修改性别，如果没有修改性别则为之前的值
 	 * @return 修改是否成功
+	 * @throws SQLException 
 	 */
-	static public boolean modifyMyInfo(String uid, String password, String nickName, String birthday, String sex) {
+	static public boolean modifyMyInfo(String uid, String password, String nickName, String birthday, String sex) throws SQLException {
 		CompleteUserInfo I = Handle.getCompleteUserInfo(uid);
 		String pw = password, nname = nickName, bir = birthday;
 		boolean s = false;
@@ -169,14 +176,19 @@ public class Handle {
 		if (password == null) {
 			Connection conn = Connectsql.getConn();
 			String sql = "select password from user where uid=?";
-			PreparedStatement pstmt;
+			PreparedStatement pstmt = null;
 			try {
 			    pstmt = (PreparedStatement)conn.prepareStatement(sql);
 			    pstmt.setString(1, uid);
 			    ResultSet rs = pstmt.executeQuery();
 			    while (rs.next())
 			    	pw = rs.getString(1);
-			} catch (SQLException e) {}
+			} catch (SQLException e) {
+				return false;
+			} finally {
+				   pstmt.close();
+			       conn.close();
+			   }
 		}
 		return User.modifyInfo(uid, pw, nname, birth, s);
 	}
@@ -192,24 +204,29 @@ public class Handle {
 	 * @author wsq
 	 * @param uid 当前用户id
 	 * @return 当前用户好友列表，每一条好友记录信息包含好友id，好友昵称以及好友状态(是否在线)
+	 * @throws SQLException 
 	 */
-	static public List<SimpleUserInfo> getAllFriendInfo(String uid) {
-		List<SimpleUserInfo> info = new ArrayList<>();
+	static public List<CompleteUserInfo> getAllFriendInfo(String uid) throws SQLException {
+		List<CompleteUserInfo> info = new ArrayList<>();
 		Connection conn = Connectsql.getConn();
-		String sql = "select user.uid, user.unickname, user.userstate from friendship, user "
+		String sql = "select user.uid, user.unickname, user.birthday, user.sex, user.userstate from friendship, user "
 				+ "where (friendship.user_uid1 =? and friendship.user_uid2=user.uid) or (friendship.user_uid2=? and friendship.user_uid1=user.uid)";
-		PreparedStatement pstmt;
+		PreparedStatement pstmt = null;
 		try {
 		    pstmt = (PreparedStatement)conn.prepareStatement(sql);
 		    pstmt.setString(1, uid);
 		    pstmt.setString(2, uid);
 		    ResultSet rs = pstmt.executeQuery();
 		    while (rs.next()) {
-		    	info.add(new SimpleUserInfo(rs.getString(1), rs.getString(2), rs.getBoolean(3)));
+		    	info.add(new CompleteUserInfo(rs.getString(1), rs.getString(2), rs.getDate(3), rs.getBoolean(4), rs.getBoolean(5), Record.getRecordOfFriendInfoById(Record.getLastRecordOfFriendIdsByUser(uid, rs.getString(1)))));
 		    }
 		    return info;
-		} catch (SQLException e) {}
-		return null;
+		} catch (SQLException e) {
+			return null;
+		} finally {
+			   pstmt.close();
+		       conn.close();
+		   }
 	}
 	
 	/**
@@ -217,22 +234,27 @@ public class Handle {
 	 * @author wsq
 	 * @param uid 当前用户id
 	 * @return 当前用户群列表，每一条群记录信息包含群id，群名
+	 * @throws SQLException 
 	 */
-	static public List<SimpleGroupInfo> getAllGroupInfo(String uid) {
-		List<SimpleGroupInfo> info = new ArrayList<>();
+	static public List<CompleteGroupInfo> getAllGroupInfo(String uid) throws SQLException {
+		List<CompleteGroupInfo> info = new ArrayList<>();
 		Connection conn = Connectsql.getConn();
-		String sql = "select groupchat.gid, groupchat.groupname from groupchat, groupmember where groupmember.user_uid=? and groupchat.gid=groupmember.group_gid";
-		PreparedStatement pstmt;
+		String sql = "select groupchat.gid, groupchat.announcement, groupchat.groupname, user.uid, user.unickname from groupchat, groupmember, user where groupmember.user_uid=? and groupchat.gid=groupmember.group_gid and groupchat.user_uid = user.uid";
+		PreparedStatement pstmt = null;
 		try {
 		    pstmt = (PreparedStatement)conn.prepareStatement(sql);
 		    pstmt.setString(1, uid);
 		    ResultSet rs = pstmt.executeQuery();
 		    while (rs.next()) {
-		    	info.add(new SimpleGroupInfo(rs.getInt(1), rs.getString(2)));
+		    	info.add(new CompleteGroupInfo(rs.getInt(1), rs.getString(2), rs.getString(3), rs.getString(4), rs.getString(5), Group.getGroupMembers(rs.getInt(1)).size(), Record.getRecordOfGroupInfoById(Record.getLastRecordOfGroupInfoByGroup(rs.getInt(1)))));
 		    }
 		    return info;
-		} catch (SQLException e) {}
-		return null;
+		} catch (SQLException e) {
+			return null;
+		} finally {
+			   pstmt.close();
+		       conn.close();
+		   }
 	}
 	/**用户界面模块函数结束**/
 	
@@ -246,21 +268,26 @@ public class Handle {
 	 * @author wsq
 	 * @param uid 搜索目标用户id
 	 * @return 用户简要信息，包括用户id，用户昵称，用户状态
+	 * @throws SQLException 
 	 */
-	static public SimpleUserInfo getSimpleUserInfo(String uid) {
+	static public SimpleUserInfo getSimpleUserInfo(String uid) throws SQLException {
 		Connection conn = Connectsql.getConn();
 		String sql = "select unickname, userstate from user where uid=?";
-		PreparedStatement pstmt;
+		PreparedStatement pstmt = null;
 		try {
 			pstmt = (PreparedStatement)conn.prepareStatement(sql);
 			pstmt.setString(1, uid);
 			ResultSet rs = pstmt.executeQuery();
-			while (rs.next())
+			while (rs.next()) {
 				return new SimpleUserInfo(uid, rs.getString(1), rs.getBoolean(2));
+			}
 			return null;
 		} catch (SQLException e) {
 			return null;
-		}
+		} finally {
+			   pstmt.close();
+		       conn.close();
+		   }
 	}
 	
 	/**
@@ -268,46 +295,56 @@ public class Handle {
 	 * @author wsq
 	 * @param gid 搜索群号
 	 * @return 简要群信息，包括群id，群名
+	 * @throws SQLException 
 	 */
-	static public SimpleGroupInfo getSimpleGroupInfo(int gid) {
+	static public SimpleGroupInfo getSimpleGroupInfo(int gid) throws SQLException {
 		Connection conn = Connectsql.getConn();
 		String sql = "select groupname from groupchat where gid=?";
-		PreparedStatement pstmt;
+		PreparedStatement pstmt = null;
 		try {
 			pstmt = (PreparedStatement)conn.prepareStatement(sql);
 			pstmt.setInt(1, gid);
 			ResultSet rs = pstmt.executeQuery();
-			while (rs.next())
+			while (rs.next()) {
 				return new SimpleGroupInfo(gid, rs.getString(1));
+			}
 			return null;
 		} catch (SQLException e) {
 			return null;
-		}
+		} finally {
+			   pstmt.close();
+		       conn.close();
+		   }
 	}
 	
 	/**
 	 * 获取完整群信息
 	 * @param gid 目标群id
 	 * @return 目标群完整信息，包括群id，群公告，群名，管理员id，管理员名字，群人数
+	 * @throws SQLException 
 	 */
-	static public CompleteGroupInfo getCompleteGroupInfo(int gid) {
+	static public CompleteGroupInfo getCompleteGroupInfo(int gid) throws SQLException {
 		int number = 0;
 		Connection conn = Connectsql.getConn();
 		String sql = "select groupchat.announcement, groupchat.groupname, user.uid, user.unickname "
 		+ "from groupchat, user "
 		+ "where groupchat.gid=? and groupchat.user_uid = user.uid";
-		PreparedStatement pstmt;
+		PreparedStatement pstmt = null;
 		try {
 			pstmt = (PreparedStatement)conn.prepareStatement(sql);
 			pstmt.setInt(1, gid);
 			ResultSet rs = pstmt.executeQuery();
 			number = Group.getGroupMembers(gid).size();
-			while (rs.next())
+			while (rs.next()) {
 				return new CompleteGroupInfo(gid, rs.getString(1), rs.getString(2), rs.getString(3), rs.getString(4), number);
-			return null;
+			}
 		} catch (SQLException e) {
 			return null;
+		} finally {
+			   pstmt.close();
+		       conn.close();
 		}
+		return null;
 	}
 	/**搜索模块函数结束**/
 	
@@ -321,8 +358,9 @@ public class Handle {
 	 * @author wsq
 	 * @param uid 当前用户id
 	 * @return 消息列表，每一条信息包括目标用户id，目标用户昵称，受理状态
+	 * @throws SQLException 
 	 */
-	static public List<FriendAddInfo> getFriendApplyInfo(String uid) {
+	static public List<FriendAddInfo> getFriendApplyInfo(String uid) throws SQLException {
 		return Friend.getReceiverInfo(uid);
 	}
 	
@@ -331,18 +369,20 @@ public class Handle {
 	 * @author wsq
 	 * @param uid 当前用户id
 	 * @return 消息列表，每一条信息包括目标用户id，目标用户昵称，受理状态
+	 * @throws SQLException 
 	 */
-	static public List<FriendAddInfo> getFriendInviteInfo(String uid) {
+	static public List<FriendAddInfo> getFriendInviteInfo(String uid) throws SQLException {
 		return Friend.getSenderInfo(uid);
 	}
 	
 	/**
 	 * @author wrf
 	 * 传入两个uid，更新friendadd好友添加邀请表，状态为未处理设置为0
+	 * @throws SQLException 
 	 * 
 	 * @modifier wsq 添加对双方是否在好友添加消息记录表中存在的判断
 	 */
-	static public boolean sendFriendRequest(String sender_uid, String receiver_uid) {
+	static public boolean sendFriendRequest(String sender_uid, String receiver_uid) throws SQLException {
 		if (Friend.isExistFriendAdd(sender_uid, receiver_uid) || Friend.isExistFriendAdd(receiver_uid, sender_uid))
 			return false;
 		Iterator it1 = User.getAllFriend(sender_uid).iterator(); 
@@ -352,46 +392,60 @@ public class Handle {
  		Connection conn = Connectsql.getConn();
 		String sql = "insert into friendadd (state, sender_uid, receiver_uid) "
 				+ "values(0,?,?)";
-	    PreparedStatement pstmt;
+	    PreparedStatement pstmt = null;
 	    try {
  	        pstmt = (PreparedStatement) conn.prepareStatement(sql);
  	        pstmt.setString(1, sender_uid);
  	        pstmt.setString(2, receiver_uid);
 	        pstmt.executeUpdate();
-	        pstmt.close();
-	        conn.close();
 		} catch (SQLException e) {
 		    return false;
-		}
+		} finally {
+			   pstmt.close();
+		       conn.close();
+		   }
 		return true;
     }
 	
 	/**
 	 * @author wrf
 	 * 根据传入的agree判断是否同意添加，如果agree为true，将对应条目状态改为1，同时更新friendship表，agree为false表示拒绝，直接删除该条目，
+	 * @throws SQLException 
 	 */
-	static public boolean handleFriendApply(String s_uid, String r_uid, boolean agree) {
+	static public boolean handleFriendApply(String s_uid, String r_uid, boolean agree) throws SQLException {
 		if (agree == false) {
-			Friend.dropFriendAdd(s_uid, r_uid);
+			try {
+				Friend.dropFriendAdd(s_uid, r_uid);
+			} catch (Exception e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+				return false;
+			}
 			return true;
 		} else if (agree == true) {
-			if (Friend.isExistFriendAdd(s_uid, r_uid) == false) return false;
+			try {
+				if (Friend.isExistFriendAdd(s_uid, r_uid) == false) return false;
+			} catch (Exception e1) {
+				// TODO Auto-generated catch block
+				e1.printStackTrace();
+				return false;
+			}
 			Connection conn = Connectsql.getConn();
 			String sql = "update friendadd set state='1' where sender_uid=? and receiver_uid=?";
-			PreparedStatement pstmt;
+			PreparedStatement pstmt = null;
 			try {
 			    pstmt = (PreparedStatement) conn.prepareStatement(sql);
 			    pstmt.setString(1, s_uid);
 			    pstmt.setString(2, r_uid);
 			    pstmt.executeUpdate();
-			    pstmt.close();
-			    conn.close();
 			} catch (SQLException e) {
 			    e.printStackTrace();
 			    return false;
-			}
-			Friend.addFriendintoFriendship(s_uid, r_uid);
-			return true;
+			} finally {
+				   pstmt.close();
+			       conn.close();
+			   }
+			return Friend.addFriendintoFriendship(s_uid, r_uid);
 		} else {
 			return false;
 		}
@@ -403,8 +457,9 @@ public class Handle {
 	 * @param uid1 用户1id
 	 * @param uid2 用户2id
 	 * @return 删除是否成功
+	 * @throws SQLException 
 	 */
-	static public boolean deleteFriend(String uid1, String uid2) {
+	static public boolean deleteFriend(String uid1, String uid2) throws SQLException {
 		if (!User.getAllFriend(uid1).contains(uid2))
 			return false;
 		Friend.dropFriend(uid1, uid2);
@@ -420,8 +475,9 @@ public class Handle {
 	/**
 	 * @author wrf
 	 * 发送一个群加入请求，更新groupapply表
+	 * @throws SQLException 
 	 */
-	static public boolean sendGroupApply (String uid, int gid) {
+	static public boolean sendGroupApply (String uid, int gid) throws SQLException {
 		Iterator it1 = User.getAllGroup(uid).iterator(); 
  		while (it1.hasNext()) {
  			if (it1.next().equals(gid)) return false;  // 首先保证该用户还不是群成员
@@ -430,26 +486,28 @@ public class Handle {
 		Connection conn = Connectsql.getConn();
 		String sql = "insert into groupapply (user_uid, group_gid) "
 				+ "values(?,?)"; 
-		PreparedStatement pstmt;
+		PreparedStatement pstmt = null;
 	    try {
  	        pstmt = (PreparedStatement) conn.prepareStatement(sql); 
  	        pstmt.setString(1, uid);
  	        pstmt.setInt(2, gid); 
 	        pstmt.executeUpdate();
-	        pstmt.close();
-	        conn.close();
 		} catch (SQLException e) {
 			//e.printStackTrace();
 		    return false;
-		}
+		} finally {
+			   pstmt.close();
+		       conn.close();
+		   }
 		return true;
 	}
 	
 	/**
 	 * @author wrf
 	 * 发送一个群邀请请求，更新groupinvite表
+	 * @throws SQLException 
 	 */
-	static public boolean sendGroupInvite (int gid, String uid) {
+	static public boolean sendGroupInvite (int gid, String uid) throws SQLException {
 		Iterator it1 = User.getAllGroup(uid).iterator(); 
  		while (it1.hasNext()) {
  			if (it1.next().equals(gid)) return false;  // 首先保证该用户还不是群成员
@@ -458,18 +516,19 @@ public class Handle {
 		Connection conn = Connectsql.getConn();
 		String sql = "insert into groupinvite (group_gid, user_uid) "
 				+ "values(?,?)"; 
-		PreparedStatement pstmt;
+		PreparedStatement pstmt = null;
 	    try {
  	        pstmt = (PreparedStatement) conn.prepareStatement(sql); 
  	        pstmt.setString(2, uid);
  	        pstmt.setInt(1, gid); 
 	        pstmt.executeUpdate();
-	        pstmt.close();
-	        conn.close();
 		} catch (SQLException e) {
 			//e.printStackTrace();
 		    return false;
-		}
+		} finally {
+			   pstmt.close();
+		       conn.close();
+		   }
 		return true;
 	}
 	
@@ -479,12 +538,13 @@ public class Handle {
 	 * @author wsq
 	 * @param gid 目标群id
 	 * @return 目标群收到的用户申请列表，每一条记录包括用户ID，用户昵称，用户状态(可以忽略)
+	 * @throws SQLException 
 	 */
-	static public List<SimpleUserInfo> getAllGroupApply (int gid) {
+	static public List<SimpleUserInfo> getAllGroupApply (int gid) throws SQLException {
 		List<SimpleUserInfo> info = new ArrayList<>();
 		Connection conn = Connectsql.getConn();
 		String sql = "select user.uid, user.unickname, user.userstate from groupapply, user where user.uid=groupapply.user_uid and groupapply.group_gid=?";
-		PreparedStatement pstmt;
+		PreparedStatement pstmt = null;
 		try {
 		    pstmt = (PreparedStatement)conn.prepareStatement(sql);
 		    pstmt.setInt(1, gid);
@@ -495,8 +555,12 @@ public class Handle {
 		    return info;
 		} catch (SQLException e) {
 			e.printStackTrace();
-		}
-		return null;
+			return null;
+		} finally {
+			   pstmt.close();
+		       conn.close();
+		   }
+
 	}
 	
 	/**
@@ -505,14 +569,15 @@ public class Handle {
 	 * @author wsq
 	 * @param uid 目标用户id
 	 * @return 目标用户收到的群邀请列表，每一条记录包括群id，群名，管理员id,管理员昵称
+	 * @throws SQLException 
 	 */
-	static public List<GroupInviteInfo> getAllGroupInvite(String uid) {
+	static public List<GroupInviteInfo> getAllGroupInvite(String uid) throws SQLException {
 		List<GroupInviteInfo> info = new ArrayList<>();
 		Connection conn = Connectsql.getConn();
 		String sql = "select groupinvite.group_gid, groupchat.groupname, user.uid, user.unickname "
 				+ "from groupinvite, groupchat, user "
 				+ "where groupinvite.user_uid=? and groupinvite.group_gid=groupchat.gid and groupchat.user_uid=user.uid";
-		PreparedStatement pstmt;
+		PreparedStatement pstmt = null;
 		try {
 		    pstmt = (PreparedStatement)conn.prepareStatement(sql);
 		    pstmt.setString(1, uid);
@@ -521,15 +586,21 @@ public class Handle {
 		    	info.add(new GroupInviteInfo(rs.getInt(1), rs.getString(2), rs.getString(3), rs.getString(4)));
 		    }
 		    return info;
-		} catch (SQLException e) {e.printStackTrace();}
-		return null;
+		} catch (SQLException e) {
+			e.printStackTrace();
+			return null;
+		} finally {
+			   pstmt.close();
+		       conn.close();
+		   }
 	}
 	
 	/**
 	 * @author wrf
 	 * 通过agree真假来判断是否同意加群的申请，并作出相关处理
+	 * @throws SQLException 
 	 */
-	static public boolean handleGroupApply (int gid, String uid, boolean agree) {
+	static public boolean handleGroupApply (int gid, String uid, boolean agree) throws SQLException {
 		if (agree == false) {
 			if (Group.dropGroupApply(uid, gid) == true) return true;  // 拒绝申请，将groupapply对应条目删除
 		} else {
@@ -544,8 +615,9 @@ public class Handle {
 	/**
 	 * @author wrf
 	 * 通过agree真假来判断是否同意加群的邀请，并作出相关处理
+	 * @throws SQLException 
 	 */
-	static public boolean handleGroupInvite (int gid, String uid, boolean agree) {
+	static public boolean handleGroupInvite (int gid, String uid, boolean agree) throws SQLException {
 		if (agree == false) {
 			if (Group.dropGroupInvite(gid, uid) == true) return true;  // // 拒绝申请，将groupinvite对应条目删除
 		} else {
@@ -569,8 +641,9 @@ public class Handle {
 	 * @param uid 创建者id
 	 * @param gName 群名
 	 * @return 群号
+	 * @throws SQLException 
 	 */
-	static public String createGroup(String uid, String gName) {
+	static public String createGroup(String uid, String gName) throws SQLException {
 		int answer = Group.createGroup("", gName, uid);
 		if (answer == -1)
 			return "fail";
@@ -582,28 +655,35 @@ public class Handle {
 	 * @author wsq
 	 * @param gid 目标群id
 	 * @return 目标群管理员id
+	 * @throws SQLException 
 	 */
-	static public String getGroupManager(int gid) {
+	static public String getGroupManager(int gid) throws SQLException {
 		if (!Group.isExistGroup(gid)) return null;
 		Connection conn = Connectsql.getConn();
 		String sql = "select user_uid from groupchat where gid = ?";
-		PreparedStatement pstmt;
+		PreparedStatement pstmt = null;
 		try {
 			pstmt = (PreparedStatement)conn.prepareStatement(sql);
 			pstmt.setInt(1, gid);
 			ResultSet rs = pstmt.executeQuery();
-			while (rs.next())
+			while (rs.next()) {
 				return rs.getString(1);
+			}
 			return null;
-		} catch (SQLException e) {}
-		return null;
+		} catch (SQLException e) {
+			return null;
+		} finally {
+			   pstmt.close();
+		       conn.close();
+		   }
 	}
 	
 	/**
 	 * @author wrf
 	 * 传入gid和uid，改变管理者
+	 * @throws SQLException 
 	 */
-	static public boolean changeManager(int gid, String uid) {
+	static public boolean changeManager(int gid, String uid) throws SQLException {
 		if (Group.isExistGroup(gid) == false) return false;
 		Iterator it1 = User.getAllGroup(uid).iterator(); 
 		if (it1.hasNext() == false) return false;  // 表示该用户没有加群
@@ -613,26 +693,28 @@ public class Handle {
 		}
 		Connection conn = Connectsql.getConn();
 		String sql = "update groupchat set user_uid=? where gid=?";
-		PreparedStatement pstmt;
+		PreparedStatement pstmt = null;
 		try {
 		    pstmt = (PreparedStatement) conn.prepareStatement(sql);
 		    pstmt.setString(1, uid);
 		    pstmt.setInt(2, gid);
 		    pstmt.executeUpdate();
-		    pstmt.close();
-		    conn.close();
 		} catch (SQLException e) {
 		    e.printStackTrace();
 		    return false;
-		}
+		} finally {
+			   pstmt.close();
+		       conn.close();
+		   }
 		return true;
 	}
 	
 	/**
 	 * @author wrf
 	 * 传入gid，可以修改公告和群名称，群管理员在另一个函数中修改
+	 * @throws SQLException 
 	 */
-	static public boolean modifyGroup(int gid, String announcement, String groupname) {
+	static public boolean modifyGroup(int gid, String announcement, String groupname) throws SQLException {
 		if (Group.isExistGroup(gid) == false) return false;
 		Connection conn = Connectsql.getConn();
 		CompleteGroupInfo group = Handle.getCompleteGroupInfo(gid);
@@ -642,33 +724,35 @@ public class Handle {
 		if (groupname == null)
 			gname = group.getGroupName();
 		String sql = "update groupchat set announcement=?, groupname=? where gid=?";
-		PreparedStatement pstmt;
+		PreparedStatement pstmt = null;
 		try {
 		    pstmt = (PreparedStatement) conn.prepareStatement(sql);
 		    pstmt.setString(1, ann);
 		    pstmt.setString(2, gname);
 		    pstmt.setInt(3, gid);
 		    pstmt.executeUpdate();
-		    pstmt.close();
-		    conn.close();
 		} catch (SQLException e) {
 		    e.printStackTrace();
 		    return false;
-		}
+		} finally {
+			   pstmt.close();
+		       conn.close();
+		   }
 		return true;
 	}
 	
 	/**
 	 * @author wrf
 	 * 解散群，更新groupmember表、groupinvite和groupapply表
+	 * @throws SQLException 
 	 */
-	static public boolean dissolveGroup (int gid) {
+	static public boolean dissolveGroup (int gid) throws SQLException {
 		if (Group.isExistGroup(gid) == false) return false;
 		Connection conn = Connectsql.getConn();
 		String sql2 = "delete from groupinvite where group_gid=?";
 		String sql3 = "delete from groupapply where group_gid=?";
 		String sql1 = "delete from groupmember where group_gid=?";
-		PreparedStatement pstmt1, pstmt2, pstmt3;
+		PreparedStatement pstmt1 = null, pstmt2 = null, pstmt3 = null;
 		try {
 		    pstmt1 = (PreparedStatement) conn.prepareStatement(sql1);
 		    pstmt2 = (PreparedStatement) conn.prepareStatement(sql2); 
@@ -679,14 +763,15 @@ public class Handle {
 		    pstmt1.executeUpdate();    
 		    pstmt2.executeUpdate(); 
 		    pstmt3.executeUpdate(); 
-		    pstmt1.close();
-		    pstmt2.close();
-		    pstmt3.close();
-		    conn.close();
 		} catch (SQLException e) {
 			e.printStackTrace();
 			return false;
-		}
+		} finally {
+			   pstmt1.close();
+			   pstmt2.close();
+			   pstmt3.close();
+		       conn.close();
+		   }
 		Record.clearGroupRecord(gid);
 		if (Group.dropGroupBygid(gid) == false) return false;  // 因为主键约束，所以必须最后删除groupchat表中的内容
 		return true;
@@ -697,23 +782,28 @@ public class Handle {
 	 * @author wsq
 	 * @param gid 目标群id
 	 * @return 目标群成员列表，每条记录包含用户id，昵称以及是否在线
+	 * @throws SQLException 
 	 */
-	static public List<SimpleUserInfo> getGroupMembers(int gid) {
-		List<SimpleUserInfo> info = new ArrayList<>();
+	static public List<CompleteUserInfo> getGroupMembers(int gid) throws SQLException {
+		List<CompleteUserInfo> info = new ArrayList<>();
 		Connection conn = Connectsql.getConn();
-		String sql = "select user.uid, user.unickname, user.userstate from groupmember, user "
+		String sql = "select user.uid, user.unickname, user.birthday, user.sex, user.userstate from groupmember, user "
 				+ "where groupmember.group_gid =? and groupmember.user_uid=user.uid";
-		PreparedStatement pstmt;
+		PreparedStatement pstmt = null;
 		try {
 		    pstmt = (PreparedStatement)conn.prepareStatement(sql);
 		    pstmt.setInt(1, gid);
 		    ResultSet rs = pstmt.executeQuery();
 		    while (rs.next()) {
-		    	info.add(new SimpleUserInfo(rs.getString(1), rs.getString(2), rs.getBoolean(3)));
+		    	info.add(new CompleteUserInfo(rs.getString(1), rs.getString(2), rs.getDate(3), rs.getBoolean(4), rs.getBoolean(5)));
 		    }
 		    return info;
-		} catch (SQLException e) {}
-		return null;
+		} catch (SQLException e) {
+			return null;
+		} finally {
+			   pstmt.close();
+		       conn.close();
+		   }
 	}
 	
 	/**
@@ -722,12 +812,13 @@ public class Handle {
 	 * @param uid 目标用户
 	 * @param gid 目标群
 	 * @return 退群是否成功
+	 * @throws SQLException 
 	 */
-	static public boolean quitGroup(String uid, int gid) {
+	static public boolean quitGroup(String uid, int gid) throws SQLException {
 		if (uid.equals(Handle.getGroupManager(gid))) return false; // 当前用户为管理员
 		Connection conn = Connectsql.getConn();
 		String sql = "delete from groupmember where user_uid=? and group_gid=?";
-		PreparedStatement pstmt;
+		PreparedStatement pstmt = null;
 		try {
 			pstmt = (PreparedStatement)conn.prepareStatement(sql);
 			pstmt.setString(1, uid);
@@ -736,8 +827,12 @@ public class Handle {
 			Record.readRecordOfGroup(uid, gid);
 			Record.clearGroupRecordForUser(uid, gid);
 			return true;
-		} catch (SQLException e) {}
-		return false;
+		} catch (SQLException e) {
+			return false;
+		} finally {
+			   pstmt.close();
+		       conn.close();
+		   }
 	}
 	/**群管理模块函数结束**/
 	
@@ -753,8 +848,9 @@ public class Handle {
 	 * @param uid 目标用户id
 	 * @param friend_uid 好友id
 	 * @return 聊天记录列表，每一条信息包括信息内容，发送人ID，接收人ID，记录时间
+	 * @throws SQLException 
 	 */
-	static public List<FriendRecordInfo> getRecordWithFriend(String uid, String friend_uid) {
+	static public List<FriendRecordInfo> getRecordWithFriend(String uid, String friend_uid) throws SQLException {
 		List<Integer> rids = Record.getRecordOfFriendIdsByUser(uid, friend_uid);
 		List<FriendRecordInfo> info = new ArrayList<>();
 		for (int i = 0; i < rids.size(); i++)
@@ -770,8 +866,9 @@ public class Handle {
 	 * @param receiver_uid 接收者id
 	 * @param message 信息
 	 * @return 发送信息是否成功
+	 * @throws SQLException 
 	 */
-	static public boolean sendFriendRecord(String sender_uid, String receiver_uid, String message) {
+	static public boolean sendFriendRecord(String sender_uid, String receiver_uid, String message) throws SQLException {
 		Date currentTime = new Date();
 		return Record.createFriendRecord(message, sender_uid, receiver_uid, currentTime);
 	}
@@ -781,8 +878,9 @@ public class Handle {
 	 * @author wsq
 	 * @param uid 目标用户
 	 * @return 向目标用户发送了未读消息的用户列表，每条记录包括用户id，用户昵称，状态(是否在线)
+	 * @throws SQLException 
 	 */
-	static public List<SimpleUserInfo> getFriendNotRead(String uid) {
+	static public List<SimpleUserInfo> getFriendNotRead(String uid) throws SQLException {
 		List<String> uids = Record.getFriendNotRead(uid);
 		List<SimpleUserInfo> info = new ArrayList<>();
 		for (int i = 0; i < uids.size(); i++)
@@ -800,8 +898,9 @@ public class Handle {
 	 * @author wsq
 	 * @param uid 目标id
 	 * @return 目标用户具有未读消息的列表，每条记录包括群id，群名
+	 * @throws SQLException 
 	 */
-	static public List<SimpleGroupInfo> getGroupNotRead(String uid) {
+	static public List<SimpleGroupInfo> getGroupNotRead(String uid) throws SQLException {
 		List<Integer> gids = Record.getGroupNotRead(uid);
 		List<SimpleGroupInfo> info = new ArrayList<> ();
 		for (int i = 0; i < gids.size(); i++)
@@ -815,8 +914,9 @@ public class Handle {
 	 * @param uid 目标用户id
 	 * @param gid 目标群id
 	 * @return 目标群所以聊天记录，每条记录包括内容，发送者id，群id，消息时间
+	 * @throws SQLException 
 	 */
-	static public List<GroupRecordInfo> getRecordWithGroup(String uid, int gid) {
+	static public List<GroupRecordInfo> getRecordWithGroup(String uid, int gid) throws SQLException {
 		if (!Group.isMember(uid, gid))
 			return null;
 		List<GroupRecordInfo> info = new ArrayList<> ();
@@ -834,8 +934,9 @@ public class Handle {
 	 * @param sender_id 发送者id
 	 * @param gid 群id
 	 * @return 发送消息是否成功
+	 * @throws SQLException 
 	 */
-	static public boolean sendGroupRecord(String message, String sender_id, int gid) {
+	static public boolean sendGroupRecord(String message, String sender_id, int gid) throws SQLException {
 		if (!Group.isMember(sender_id, gid))
 			return false;
 		Date currentTime = new Date();

@@ -14,7 +14,7 @@ import javax.servlet.http.HttpServletResponse;
 import com.alibaba.fastjson.JSONObject;
 
 import fastchat.Handle;
-import models.SimpleUserInfo;
+import models.*;
 
 /**
  * Servlet implementation class GetGroupMembers
@@ -61,7 +61,7 @@ public class GetGroupMembers extends HttpServlet {
 		String result = new String();
 		try {
 			int groupid = Integer.valueOf(jsonObject.getString("groupid"));
-			List<SimpleUserInfo> userList = handle.getGroupMembers(groupid);
+			List<CompleteUserInfo> userList = handle.getGroupMembers(groupid);
 			JSONObject jsonObject2 = new JSONObject();
 			jsonObject2.put("usercount", userList.size());
 			jsonObject2.put("userlist", userList);
