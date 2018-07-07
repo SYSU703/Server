@@ -59,7 +59,7 @@ public class GetAllFriendInfo extends HttpServlet {
 		String result = new String();
 		try {
 			String username = jsonObject.getString("username");
-			List<SimpleUserInfo> friendList = handle.getAllFriendInfo(username);
+			List<CompleteUserInfo> friendList = handle.getAllFriendInfo(username);
 			JSONObject jsonObject2 = new JSONObject();
 			jsonObject2.put("friendcount", String.valueOf(friendList.size()));
 			jsonObject2.put("friendlist", friendList);

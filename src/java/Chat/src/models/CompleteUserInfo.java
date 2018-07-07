@@ -13,6 +13,7 @@ public class CompleteUserInfo {
 	private String userBirthday;
 	private String userSex;
 	private boolean userState;
+	private FriendRecordInfo lastMessage;
 	
 	public CompleteUserInfo(String uId, String uNickName, Date uBirthday, boolean uSex, boolean uState) {
 		userId = uId;
@@ -23,8 +24,21 @@ public class CompleteUserInfo {
 		else
 			userSex = "female";
 		userState = uState;
+		lastMessage = null;
 	}
 
+	public CompleteUserInfo(String uId, String uNickName, Date uBirthday, boolean uSex, boolean uState, FriendRecordInfo message) {
+		userId = uId;
+		userNickName = uNickName;
+		userBirthday = uBirthday.toString();
+		if (uSex)
+			userSex = "male";
+		else
+			userSex = "female";
+		userState = uState;
+		lastMessage = message;
+	}
+	
 	public String getUserId() {
 		return userId;
 	}
@@ -70,6 +84,14 @@ public class CompleteUserInfo {
 
 	public boolean isUserState() {
 		return userState;
+	}
+
+	public FriendRecordInfo getLastMessage() {
+		return lastMessage;
+	}
+
+	public void setLastMessage(FriendRecordInfo lastMessage) {
+		this.lastMessage = lastMessage;
 	}
 
 	
